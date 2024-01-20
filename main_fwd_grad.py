@@ -6,15 +6,20 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import StepLR, OneCycleLR
 from torchvision import datasets, transforms
 import torch.optim as optim
-import torch.autograd.forward_ad as fwAD
+import functorch as fc
 
 from networks.alexnet_cifar100 import AlexNet
 from networks.conv_mnist import Network as NetworkConv_MNIST
 from networks.conv_cifar10 import Network as NetworkConv_CIFAR10
-from networks.fc_mnist import Network as NetworkFC_MNIST
+from networks.fc_mnist_fwd import Network as NetworkFC_MNIST
 from networks.fc_cifar10 import Network as NetworkFC_CIFAR10
 from utils.MultiOptimizer import MultipleOptimizer
 from utils.CSVLogger import CSVLogger
+
+def functional_loss(params, fmodel, inputs, target):
+    output = fmodel(params, inputs)
+    loss = F.cross_entropy(output, target)
+    return output, loss
 
 def train(args, model, device, train_loader, optimizer, require_dir_der, epoch, scheduler):
     model.train()
@@ -25,15 +30,13 @@ def train(args, model, device, train_loader, optimizer, require_dir_der, epoch, 
 
         optimizer.zero_grad()
 
-        if require_dir_der:
-            with fwAD.dual_level():
-                data = fwAD.make_dual(data, torch.zeros(data.shape, device=device))
-                output = model(data)
-                output = fwAD.unpack_dual(output).primal
-        else:
-            output = model(data)
-        loss = F.cross_entropy(output, target)
-        loss.backward()
+        fmodel, params = fc.make_functional(model)
+        v_params = tuple([torch.randn_like(p) for p in params])
+        (output, loss), (_, dir_der) = fc.jvp(lambda params: functional_loss(params, fmodel, data, target),
+                                         (tuple(model.parameters()),), (v_params,))
+
+        for j, p in enumerate(model.parameters()):
+            p.grad = dir_der * v_params[j]
 
         optimizer.step()
         # scheduler.step()
@@ -87,7 +90,7 @@ def main(args_list=None):
                         help='input batch size for testing (default: 1000)')
     parser.add_argument('--epochs', type=int, default=100, metavar='N',
                         help='number of epochs to train (default: 100)')
-    parser.add_argument('--lr', type=float, default=1e-4, metavar='LR',
+    parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
                         help='learning rate (default: 1e-4)')
     parser.add_argument('--b-lr', type=float, default=1e-4, metavar='BLR',
                         help='learning rate for backward parameters (default: 1e-4)')
@@ -103,7 +106,7 @@ def main(args_list=None):
                         help='quickly check a single pass')
     parser.add_argument('--log-interval', type=int, default=100, metavar='N',
                         help='how many batches to wait before logging training status')
-    parser.add_argument('--train-mode', choices=['BP', 'DKP', 'DFA', 'FDFA'], default='FDFA',
+    parser.add_argument('--train-mode', choices=['FwdGrad'], default='FwdGrad',
                         help='choose between backpropagation (BP), Direct Kolen Pollack (DKP), '
                              'Direct Feedback Alignment (DFA) or Directional DFA (FDFA)')
     parser.add_argument('--log-dir', type=str, default='results/', metavar='DIR',
@@ -112,7 +115,7 @@ def main(args_list=None):
                         help='choose between MNIST, FashionMNIST, CIFAR10 or CIFAR100.')
     parser.add_argument('--conv', action='store_true', default=False,
                         help='train convolutional network.')
-    parser.add_argument('--n-layers', type=int, default=2, metavar='N',
+    parser.add_argument('--n-layers', type=int, default=1, metavar='N',
                         help='how many hidden layers in the network.')
     parser.add_argument('--seed', type=int, default=-1, metavar='N',
                         help='seed for random generators.')
@@ -127,7 +130,7 @@ def main(args_list=None):
         print("Using seed", args.seed)
 
     use_cuda = not args.no_cuda and torch.cuda.is_available()
-    print(args.train_mode)
+    print("BP")
 
     device = torch.device("cuda" if use_cuda else "cpu")
 
@@ -165,45 +168,25 @@ def main(args_list=None):
     test_loader = torch.utils.data.DataLoader(test_data, shuffle=False, **kwargs)
 
     if args.dataset == "CIFAR100":
-        model = AlexNet(args.batch_size, args.train_mode, device).to(device)
+        model = AlexNet(args.batch_size, "BP", device).to(device)
     elif args.conv and args.dataset == "CIFAR10":
-        model = NetworkConv_CIFAR10(args.batch_size, args.train_mode, device).to(device)
+        model = NetworkConv_CIFAR10(args.batch_size, "BP", device).to(device)
     elif args.conv:
-        model = NetworkConv_MNIST(args.batch_size, args.train_mode, device).to(device)
+        model = NetworkConv_MNIST(args.batch_size, "BP", device).to(device)
     elif args.dataset == "CIFAR10":
-        model = NetworkFC_CIFAR10(args.batch_size, args.n_layers, args.train_mode, device).to(device)
+        model = NetworkFC_CIFAR10(args.batch_size, args.n_layers, "BP", device).to(device)
     else:
-        model = NetworkFC_MNIST(args.batch_size, args.n_layers, args.train_mode, device).to(device)
+        model = NetworkFC_MNIST(args.batch_size, args.n_layers, "BP", device).to(device)
 
     logger = CSVLogger(['Epoch', 'Training Loss', 'Test Loss', 'Test Accuracy'], args)
 
-    if args.train_mode in ['DKP', 'FDFA']:
-        # we need to run through the network once to properly initialize the backward weights
-        test(model, device, test_loader)
+    test(model, device, test_loader)
+    for name, param in model.named_parameters():
+        print(name, type(param.data), param.size(), param.is_leaf, param.requires_grad)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
 
-        forward_params = []
-        backward_params = []
-        for name, param in model.named_parameters():
-            print(name, type(param.data), param.size(), param.is_leaf, param.requires_grad)
-            if "feedbacks" in name:
-                backward_params.append(param)
-            else:
-                forward_params.append(param)
-
-        forward_optimizer = optim.Adam([{'params': forward_params}], lr=args.lr, weight_decay=args.weight_decay)
-        #backward_optimizer = optim.Adam([{'params': backward_params}], lr=args.b_lr, weight_decay=args.feedback_decay)
-        backward_optimizer = optim.SGD([{'params': backward_params}], lr=args.b_lr)
-
-        optimizer = MultipleOptimizer(backward_optimizer, forward_optimizer)
-        scheduler = StepLR(forward_optimizer, step_size=1, gamma=args.gamma)
-    else:
-        test(model, device, test_loader)
-        for name, param in model.named_parameters():
-            print(name, type(param.data), param.size(), param.is_leaf, param.requires_grad)
-        optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-        scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
-
-    require_dir_der = args.train_mode == 'FDFA'
+    require_dir_der = "BP" == 'FDFA'
 
     for epoch in range(1, args.epochs + 1):
         training_loss = train(args, model, device, train_loader, optimizer, require_dir_der, epoch, None)  # scheduler)
@@ -214,4 +197,4 @@ def main(args_list=None):
 
 
 if __name__ == '__main__':
-    main(["--n-layers=3", "--b-lr=1.0"])
+    main()

@@ -1,7 +1,7 @@
-# Directional Direct Feedback Alignment
+# Forward Direct Feedback Alignment
 
-PyTorch implementation of the Directional Direct Feedback Alignement (DirDFA) algorithm [1]. 
-The DirDFA algorithm uses Forward-Mode Automatic Differentiation to estimate backpropagation paths as feedback 
+PyTorch implementation of the Forward Direct Feedback Alignement (FDFA) algorithm [1]. 
+The FDFA algorithm uses Forward-Mode Automatic Differentiation to estimate backpropagation paths as feedback 
 connections in DFA. This is achieved by using 
 [PyTorch's dual tensors](https://pytorch.org/tutorials/intermediate/forward_ad_usage.html) to compute 
 directional derivatives in random directions during inference.
@@ -13,22 +13,22 @@ as a base for this project.
 
 ### Fully-Connected Networks
 
-The following command runs the training of a 2-layers fully-connected network on the MNIST dataset with the DirDFA algorithm:
+The following command runs the training of a 2-layers fully-connected network on the MNIST dataset with the FDFA algorithm:
 
 
-`python3 main.py --dataset=MNIST --train-mode=DirDFA --n-layers=2`
+`python3 main.py --dataset=MNIST --train-mode=FDFA --n-layers=2`
 
 ### Shallow Convolutional Neural Network (CNN)
 
 A shallow CNN (15C5-P2-40C5-P2-128-10) can be trained by using the `--conv` argument instead of `--n-layers`:
 
-`python3 main.py --dataset=MNIST --train-mode=DirDFA --conv`
+`python3 main.py --dataset=MNIST --train-mode=FDFA --conv`
 
 ### AlexNet (CIFAR100)
 
 AlexNet is trained on CIFAR100 by running the following command:
 
-`python3 main.py --dataset=CIFAR100 --train-mode=DirDFA`
+`python3 main.py --dataset=CIFAR100 --train-mode=FDFA`
 
 ### Error Backpropagation Algorithm
 
@@ -50,8 +50,8 @@ The DKP algorithm [3] can also be used for training. This is done by setting `--
 
 ## References
 
-[1] Bacho, F., & Chu, D.. (2022). Directional Direct Feedback Alignment: Estimating Backpropagation Paths for 
-Efficient Learning on Neural Processors. [https://arxiv.org/abs/2212.07282](https://arxiv.org/abs/2212.07282)
+[1] Bacho, Florian and Chu, Dominique, Low-Variance Forward Gradients Using Direct Feedback Alignment and Momentum. 
+[http://dx.doi.org/10.2139/ssrn.4474515](http://dx.doi.org/10.2139/ssrn.4474515)
 
 [2] Nøkland, A.. (2016). Direct Feedback Alignment Provides Learning in Deep Neural Networks. 
 [https://arxiv.org/abs/1609.01596](https://arxiv.org/abs/1609.01596)

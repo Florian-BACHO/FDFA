@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" serverName="fb320@localhost:6000" remoteFilesAllowedToDisappearOnAutoupload="false">
+    <serverData>
+      <paths name="fb320@localhost:6000">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/ann_feedback_learning" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>

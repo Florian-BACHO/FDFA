@@ -15,7 +15,7 @@ class DFATrainingHook(nn.Module):
 
     def init_weights(self, dim):
         self.feedbacks = nn.Parameter(torch.Tensor(torch.Size(dim)).to(self.device))
-        if self.train_mode in ['DirDFA', 'DKP']:
+        if self.train_mode in ['FDFA', 'DKP']:
             self.feedbacks.requires_grad = True
 
             torch.nn.init.zeros_(self.feedbacks)
@@ -25,7 +25,7 @@ class DFATrainingHook(nn.Module):
             torch.nn.init.kaiming_uniform_(self.feedbacks)
 
     def forward(self, input, dir_der_at_output, grad_at_output):
-        if self.is_not_initialized and self.train_mode in ['DirDFA', 'DKP', 'DFA']:
+        if self.is_not_initialized and self.train_mode in ['FDFA', 'DKP', 'DFA']:
             if len(input.shape) > 2:
                 dim = [grad_at_output.shape[1], input.shape[1], input.shape[2], input.shape[3]]
             else:
@@ -76,7 +76,7 @@ class DFAHookFunction(torch.autograd.Function):
 
             return grad_output_est.view(grad_output.shape), grad_feedback.view(feedbacks.shape), None, None, None
 
-        elif train_mode == 'DirDFA':
+        elif train_mode == 'FDFA':
             perturbations = ctx.perturbations
             feedbacks_view = feedbacks.view(-1, np.prod(feedbacks.shape[1:]))
             perturbations_view = perturbations.view(-1, np.prod(perturbations.shape[1:]))

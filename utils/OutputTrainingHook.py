@@ -34,7 +34,7 @@ class OutputHookFunction(torch.autograd.Function):
 
         grad_at_output[:grad_output.shape[0], :].data.copy_(grad_output.data)
 
-        if ctx.train_mode == 'DirDFA':
+        if ctx.train_mode == 'FDFA':
             (dir_der,) = ctx.saved_variables
             dir_der_at_output = ctx.dir_der_at_output
             dir_der_at_output[:dir_der_at_output.shape[0], :].data.copy_(dir_der.data)
