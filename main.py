@@ -136,8 +136,8 @@ def main(args_list=None):
         kwargs.update({'num_workers': 4,
                        'pin_memory': True})
 
-    transform_train = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    transform_test = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    transform_train = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0.5, 0.5)])
+    transform_test = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0.5, 0.5)])
 
     if args.dataset == 'MNIST':
         dataset_class = datasets.MNIST
@@ -191,8 +191,8 @@ def main(args_list=None):
                 forward_params.append(param)
 
         forward_optimizer = optim.Adam([{'params': forward_params}], lr=args.lr, weight_decay=args.weight_decay)
-        #backward_optimizer = optim.Adam([{'params': backward_params}], lr=args.b_lr, weight_decay=args.feedback_decay)
-        backward_optimizer = optim.SGD([{'params': backward_params}], lr=args.b_lr)
+        backward_optimizer = optim.Adam([{'params': backward_params}], lr=args.b_lr, weight_decay=args.feedback_decay)
+        #backward_optimizer = optim.SGD([{'params': backward_params}], lr=args.b_lr)
 
         optimizer = MultipleOptimizer(backward_optimizer, forward_optimizer)
         scheduler = StepLR(forward_optimizer, step_size=1, gamma=args.gamma)
@@ -214,4 +214,14 @@ def main(args_list=None):
 
 
 if __name__ == '__main__':
-    main(["--n-layers=3", "--b-lr=1.0"])
+    # Run the FDFA algorithm with a fully-connected DNN with 3 hidden layers on the MNIST dataset
+    main(["--n-layers=3", "--dataset=MNIST"])
+
+    # Run the DFA algorithm with a fully-connected DNN with 3 hidden layers on the MNIST dataset
+    #main(["--train-mode=DFA", "--n-layers=3", "--dataset=MNIST"])
+
+    # Run the FDFA algorithm with a shallow CNN on the CIFAR10 dataset
+    #main(["--conv", "--dataset=CIFAR10"])
+
+    # Run the FDFA algorithm with AlexNet on the CIFAR100 dataset
+    #main(["--dataset=CIFAR100", "--batch-size=128"])

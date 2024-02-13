@@ -24,7 +24,7 @@ class OutputHookFunction(torch.autograd.Function):
 
     @staticmethod
     def jvp(ctx, input, dir_der_at_output, grad_at_output, train_mode):
-        ctx.save_for_backward(input)
+        ctx.dir_der = input
 
         return input
 
@@ -35,7 +35,7 @@ class OutputHookFunction(torch.autograd.Function):
         grad_at_output[:grad_output.shape[0], :].data.copy_(grad_output.data)
 
         if ctx.train_mode == 'FDFA':
-            (dir_der,) = ctx.saved_variables
+            dir_der = ctx.dir_der
             dir_der_at_output = ctx.dir_der_at_output
             dir_der_at_output[:dir_der_at_output.shape[0], :].data.copy_(dir_der.data)
 

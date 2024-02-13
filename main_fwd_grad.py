@@ -107,8 +107,7 @@ def main(args_list=None):
     parser.add_argument('--log-interval', type=int, default=100, metavar='N',
                         help='how many batches to wait before logging training status')
     parser.add_argument('--train-mode', choices=['FwdGrad'], default='FwdGrad',
-                        help='choose between backpropagation (BP), Direct Kolen Pollack (DKP), '
-                             'Direct Feedback Alignment (DFA) or Directional DFA (FDFA)')
+                        help='only one choice: FwdGrad')
     parser.add_argument('--log-dir', type=str, default='results/', metavar='DIR',
                         help='directory where metrics will be saved.')
     parser.add_argument('--dataset', choices=['MNIST', 'FashionMNIST', 'CIFAR10', 'CIFAR100'], default='MNIST',
@@ -139,8 +138,8 @@ def main(args_list=None):
         kwargs.update({'num_workers': 4,
                        'pin_memory': True})
 
-    transform_train = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    transform_test = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    transform_train = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0.5, 0.5)])
+    transform_test = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0.5, 0.5)])
 
     if args.dataset == 'MNIST':
         dataset_class = datasets.MNIST
