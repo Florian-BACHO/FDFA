@@ -115,24 +115,20 @@ class linear_classifier(nn.Module):
         self.act = nn.ReLU(inplace=True)
 
         self.linear_1 = nn.Linear(256 * 6 * 6, 4096)
-        self.linear_1_bn = nn.BatchNorm1d(4096)
         self.linear_1_dfa = DFATrainingHook(train_mode, device)
 
         self.linear_2 = nn.Linear(4096, 4096)
-        self.linear_2_bn = nn.BatchNorm1d(4096)
         self.linear_2_dfa = DFATrainingHook(train_mode, device)
 
         self.linear_3 = nn.Linear(4096, num_classes)
 
     def forward(self, x, grad_at_output, network_output):
         x = self.linear_1(x)
-        x = self.linear_1_bn(x)
         x = self.act(x)
         #x = self.drop(x)
         x = self.linear_1_dfa(x, grad_at_output, network_output)
 
         x = self.linear_2(x)
-        x = self.linear_2_bn(x)
         x = self.act(x)
         x = self.linear_2_dfa(x, grad_at_output, network_output)
 
